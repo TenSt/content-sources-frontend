@@ -128,8 +128,9 @@ const DateAuthorCell = ({
  * filename opens that submission in a SubmissionDrawer (an overlay drawer, like
  * the Packages advisory details drawer); the open submission is tracked in the
  * `?submission=<uuid>` URL param. Each row's action column offers downloading the
- * whole submission as a zip and (for the author, while pending) deleting it; the
- * column is hidden entirely when no visible row supports either action.
+ * whole submission as a zip and deleting it, each shown per the row's backend
+ * `can_download` / `can_delete` flag; the column is hidden entirely when no
+ * visible row supports either action.
  */
 const SubmissionsTable = () => {
   const [page, setPage] = useState(1);
@@ -153,19 +154,9 @@ const SubmissionsTable = () => {
   // have rows, and that must not read as "no submissions".
   const isEmpty = !isLoading && !isError && count === 0;
 
-  // Delete is author-only while pending; downloading the archive is restricted to
-  // clearinghouse read users, once the submission is submitted or processed.
-  // Mirrors `canManage` in SubmissionDetails: fails closed until the username
-  // resolves so a row is never deletable by a non-author.
-  const canDeleteRow = (submission: ClearinghouseSubmission) =>
-    hasWrite &&
-    submission.status === 'pending' &&
-    !!currentUsername &&
-    submission.username === currentUsername;
-  const canDownloadRow = (submission: ClearinghouseSubmission) =>
-    hasRead && (submission.status === 'submitted' || submission.status === 'processed');
+  // Row actions follow the backend's per-caller permission flags.
   const showActions = submissions.some(
-    (submission) => canDeleteRow(submission) || canDownloadRow(submission),
+    (submission) => submission.can_delete || submission.can_download,
   );
 
   const handleDownload = (submission: ClearinghouseSubmission) =>
@@ -250,7 +241,7 @@ const SubmissionsTable = () => {
       case 'actions':
         return (
           <Flex spaceItems={{ default: 'spaceItemsNone' }} flexWrap={{ default: 'nowrap' }}>
-            {canDownloadRow(submission) ? (
+            {submission.can_download ? (
               <FlexItem>
                 <Button
                   variant='plain'
@@ -260,7 +251,7 @@ const SubmissionsTable = () => {
                 />
               </FlexItem>
             ) : null}
-            {canDeleteRow(submission) ? (
+            {submission.can_delete ? (
               <FlexItem>
                 <Button
                   variant='plain'
